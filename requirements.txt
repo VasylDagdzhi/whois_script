@@ -3,3 +3,4 @@ whois~=0.9.16
 tldextract~=3.3.0
 pytz~=2022.1
 setuptools~=60.2.0
+pydig~=0.4.0

@@ -7,38 +7,98 @@ import validators
 import whois
 import tldextract
 import pytz
+import pydig
+
+
+class bcolors:
+    OK = '\033[92m'  # GREEN
+    WARNING = '\033[93m'  # YELLOW
+    FAIL = '\033[91m'  # RED
+    RESET = '\033[0m'  # RESET COLOR
 
 
 def get_data(domain):
     whois_raw_data = whois.query(domain)
-    print("\033[1;32mDomain name:\t", whois_raw_data.name)
-    print("Registrar:\t", whois_raw_data.registrar)
-    print("Nameservers:")
-    for i in whois_raw_data.name_servers:
-        print("\t", i)
-    creation_date = whois_raw_data.creation_date
-    print('Registered at:\t', creation_date.ctime(), "\t( By Kyiv time:\t", creation_date.astimezone(pytz.timezone(
-        'Europe/Kiev')), " )")
-    print('Updated at:\t', whois_raw_data.last_updated.ctime(), "\t")
-    print('Expires at:\t', whois_raw_data.expiration_date.ctime(), "\t")
-    print("Domain statuses:")
-    for i in whois_raw_data.statuses:
-        print("\t", i)
+    if whois_raw_data is None:
+        print(bcolors.FAIL, 'This domain is not registered.')
+    else:
+        print('\033[1;32mDomain name:\t', bcolors.RESET, whois_raw_data.name)
+        print('\033[1;32mRegistrar:\t', bcolors.RESET, whois_raw_data.registrar)
+        print('\033[1;32mNameservers:')
+        for i in whois_raw_data.name_servers:
+            print('\t', bcolors.RESET, i)
+        creation_date = whois_raw_data.creation_date
+        print('\033[1;32mRegistered at:\t', bcolors.RESET, creation_date.ctime(), '\033[1;32m\tBy Kyiv time:\t',
+            bcolors.RESET, creation_date.astimezone(pytz.timezone('Europe/Kiev')))
+        print('\033[1;32mUpdated at:\t', bcolors.RESET, whois_raw_data.last_updated.ctime(), '\t')
+        print('\033[1;32mExpires at:\t', bcolors.RESET, whois_raw_data.expiration_date.ctime(), '\t')
+        print('\033[1;32mDomain statuses:')
+        for i in whois_raw_data.statuses:
+            print('\t', bcolors.RESET, i)
+        get_dns_data(domain, whois_raw_data)
 
 
-# entered_domain = "ljnero.us"
-entered_domain = input("Enter the domain name: ")
+def get_dns_data(domain, whois_raw_data):
+    if 'dns1.namecheaphosting.com' != whois_raw_data.name_servers[0]:
+        print('\033[1;32mDNS lookup information:\t', bcolors.WARNING, 'Warning! Domain not using Web Hosting DNS.',
+              bcolors.OK)
+        a_query = pydig.query(str(whois_raw_data.name), 'A')
+        for i in a_query:
+            print('\t\033[1;32mA\t', bcolors.RESET, i)
+        txt_query = pydig.query(str(whois_raw_data.name), 'TXT')
+        for i in txt_query:
+            if 'v=spf' in i:
+                print('\033[1;32m\tSPF\t', bcolors.RESET, i)
+            else:
+                print('\033[1;32m\tTXT\t', bcolors.RESET, i)
+        dkim = pydig.query('default._domainkey.' + str(whois_raw_data.name), 'TXT')
+        for i in dkim:
+            if 'v=DKIM' in i:
+                print('\033[1;32m\tDKIM\t', bcolors.RESET, i)
+
+    else:
+        ns1a = pydig.query(whois_raw_data.name_servers[0], 'A')
+        ns2a = pydig.query(whois_raw_data.name_servers[1], 'A')
+        resolver = pydig.Resolver(
+            nameservers=[
+                '156.154.132.200',
+                '156.154.133.200'
+            ],
+            additional_args=[
+                '+time=10'
+            ]
+        )
+        query = resolver.query(str(whois_raw_data.name), 'A')
+        print('\033[1;32mDNS lookup information:\t')
+        a_query = pydig.query(str(whois_raw_data.name), 'A')
+        for i in a_query:
+            print('\t\033[1;32mA\t', bcolors.RESET, i)
+        txt_query = pydig.query(str(whois_raw_data.name), 'TXT')
+        for i in txt_query:
+            if 'v=spf' in i:
+                print('\033[1;32m\tSPF\t', bcolors.RESET, i)
+            else:
+                print('\033[1;32m\tTXT\t', bcolors.RESET, i)
+        dkim = pydig.query('default._domainkey.' + str(whois_raw_data.name), 'TXT')
+        for i in dkim:
+            if 'v=DKIM' in i:
+                print('\033[1;32m\tDKIM\t', bcolors.RESET, i)
+
+
+entered_domain = 'ljnero.us'
+# entered_domain = input('Enter the domain name: ')
 
 # validate the input string to be a domain or not
 if validators.domain(entered_domain):
+    if tldextract.extract(entered_domain).suffix not in whois.validTlds():
+        print(bcolors.FAIL, 'Unfortunately, "{0}"\tis an unsupported TLD'.format(str(
+            tldextract.extract(entered_domain).suffix)))
     # check if the entered domain's TLD is in the list of supported ones to parse data
-    if tldextract.extract(entered_domain).suffix in whois.validTlds():
+    else:
         # call the function that parses the required fields and shows them in a comfortable way
         get_data(entered_domain)
-    else:
-        print('Unfortunately, "{0}"\tis an unsupported TLD'.format(str(tldextract.extract(entered_domain).suffix)))
 else:
-    print('You have input a non valid domain name.')
+    print(bcolors.FAIL, 'You have input a non valid domain name.')
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
