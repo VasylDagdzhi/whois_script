@@ -3,7 +3,7 @@ from setuptools import setup
 setup(
     name='whois_script',
     version='1.0',
-    packages=['validators', 'whois', 'tldextract', 'pytz', 'setuptools', 'pydig'],
+    packages=['validators', 'whois', 'tldextract', 'pytz', 'setuptools', 'pydig', 'Flask'],
     url='http://ljnero.us',
     license='',
     author='Vasiliy Dagdzhi',

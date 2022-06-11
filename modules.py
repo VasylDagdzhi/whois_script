@@ -1,6 +1,8 @@
 import pytz
 import pydig
 import whois
+import validators
+import tldextract
 
 
 class bcolors:
@@ -76,3 +78,17 @@ def get_dns_data(whois_raw_data):
         for i in dkim:
             if 'v=DKIM' in i:
                 print('\033[1;32m\tDKIM\t', bcolors.RESET, i)
+
+
+def begin(entered_domain):
+    # validate the input string to be a domain or not
+    if validators.domain(entered_domain):
+        if tldextract.extract(entered_domain).suffix not in whois.validTlds():
+            print(bcolors.FAIL, 'Unfortunately, "{0}"\tis an unsupported TLD'.format(str(
+                tldextract.extract(entered_domain).suffix)))
+        # check if the entered domain's TLD is in the list of supported ones to parse data
+        else:
+            # call the function that parses the required fields and shows them in a comfortable way
+            get_data(entered_domain)
+    else:
+        print(bcolors.FAIL, 'You have input a non valid domain name.')
