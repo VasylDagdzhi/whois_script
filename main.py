@@ -1,4 +1,4 @@
-# This is a Whois parser script created for Namecheap Domain team
+# This is a Whois Domain parser script created for Namecheap Domain team
 # Inspired by Kate Shevchenko
 # Created by Vasiliy Dagdzhi
 
