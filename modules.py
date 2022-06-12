@@ -3,13 +3,42 @@ import pydig
 import whois
 import validators
 import tldextract
+import tabulate
 
 
 class bcolors:
     OK = '\033[92m'  # GREEN
     WARNING = '\033[93m'  # YELLOW
     FAIL = '\033[91m'  # RED
+    PURPLE = '\033[35m'  # PURPLE
     RESET = '\033[0m'  # RESET COLOR
+
+
+def get_domain_statuses(whois_raw_data):
+    print('\033[1;32mDomain statuses:')
+    for i in whois_raw_data.statuses:
+        split_str = i.split(" ")
+        tabulator1 = '\t'
+        tabulator2 = '\t\t'
+        tabulator3 = '\t\t\t'
+        x = len(str(split_str[0]))
+        y = float(24 / x )
+        if y <= 1:
+            tabulator = tabulator1
+        elif 1 < y < 2:
+            tabulator = tabulator2
+        elif 2 < y:
+            tabulator = tabulator3
+        if "clientHold" == split_str[0]:
+            print('\t', bcolors.FAIL, split_str[0], tabulator, split_str[1])
+        elif "serverHold" == split_str[0]:
+            print('\t', bcolors.FAIL, split_str[0], tabulator, split_str[1])
+        elif "pendingDelete" == split_str[0]:
+            print('\t', bcolors.WARNING, split_str[0], tabulator, split_str[1])
+        elif "redemptionPeriod" == split_str[0]:
+            print('\t', bcolors.PURPLE, split_str[0], tabulator, split_str[1])
+        else:
+            print('\t', bcolors.RESET, split_str[0], tabulator, split_str[1])
 
 
 def get_data(domain):
@@ -27,9 +56,7 @@ def get_data(domain):
               bcolors.RESET, creation_date.astimezone(pytz.timezone('Europe/Kiev')))
         print('\033[1;32mUpdated at:\t', bcolors.RESET, whois_raw_data.last_updated.ctime(), '\t')
         print('\033[1;32mExpires at:\t', bcolors.RESET, whois_raw_data.expiration_date.ctime(), '\t')
-        print('\033[1;32mDomain statuses:')
-        for i in whois_raw_data.statuses:
-            print('\t', bcolors.RESET, i)
+        get_domain_statuses(whois_raw_data)
         get_dns_data(whois_raw_data)
 
 
