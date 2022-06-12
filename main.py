@@ -3,9 +3,7 @@
 # Created by Vasiliy Dagdzhi
 
 # module definitions
-import tldextract
-import validators
-import whois
+import sys
 import modules
 
 
@@ -16,7 +14,7 @@ class bcolors:
     RESET = '\033[0m'  # RESET COLOR
 
 
-entered_domain = 'ljnero.us'
+entered_domain = sys.argv[1]
 # entered_domain = input('Enter the domain name: ')
 
 modules.begin(entered_domain)
