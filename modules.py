@@ -15,52 +15,83 @@ class bcolors:
 
 
 def get_domain_statuses(whois_raw_data):
-    status = True;
-    print('\033[1;32mDomain statuses:')
-    for i in whois_raw_data.statuses:
-        split_str = i.split(" ")
-        tabulator1 = '\t'
-        tabulator2 = '\t\t'
-        tabulator3 = '\t\t\t'
-        x = len(str(split_str[0]))
-        y = float(24 / x )
-        if y <= 1:
-            tabulator = tabulator1
-        elif 1 < y < 2.2:
-            tabulator = tabulator2
-        elif 2.2 < y:
-            tabulator = tabulator3
-        if "clientHold" == split_str[0]:
-            print('\t', bcolors.FAIL, split_str[0], tabulator, split_str[1])
-            status = False
-        elif "serverHold" == split_str[0]:
-            print('\t', bcolors.FAIL, split_str[0], tabulator, split_str[1])
-        elif "pendingDelete" == split_str[0]:
-            print('\t', bcolors.WARNING, split_str[0], tabulator, split_str[1])
-            status = False
-        elif "redemptionPeriod" == split_str[0]:
-            print('\t', bcolors.PURPLE, split_str[0], tabulator, split_str[1])
-            status = False
-        else:
-            print('\t', bcolors.RESET, split_str[0], tabulator, split_str[1])
-        return status
+    tabulator = ""
+    status = True
+    if not whois_raw_data.statuses:
+        print(bcolors.FAIL, "Domain status not available.", bcolors.RESET)
+    else:
+        print('\033[1;32mDomain statuses:')
+        for i in whois_raw_data.statuses:
+            split_str = i.split(" ")
+            tabulators = ['\t', '\t\t', '\t\t\t']
+            x = len(str(split_str[0]))
+            y = float(24 / x)
+            if y <= 1:
+                tabulator = tabulators[0]
+            elif 1 < y < 2.2:
+                tabulator = tabulators[1]
+            elif 2.2 < y:
+                tabulator = tabulators[2]
+            if "clientHold" == split_str[0]:
+                if split_str[1]:
+                    print('\t', bcolors.FAIL, split_str[0], tabulator, split_str[1])
+                else:
+                    print('\t', bcolors.FAIL, split_str[0])
+                status = False
+            elif "serverHold" == split_str[0]:
+                if split_str[1]:
+                    print('\t', bcolors.FAIL, split_str[0], tabulator, split_str[1])
+                else:
+                    print('\t', bcolors.FAIL, split_str[0])
+            elif "pendingDelete" == split_str[0]:
+                if split_str[1]:
+                    print('\t', bcolors.WARNING, split_str[0], tabulator, split_str[1])
+                else:
+                    print('\t', bcolors.FAIL, split_str[0])
+                status = False
+            elif "redemptionPeriod" == split_str[0]:
+                if split_str[1]:
+                    print('\t', bcolors.PURPLE, split_str[0], tabulator, split_str[1])
+                else:
+                    print('\t', bcolors.FAIL, split_str[0])
+                status = False
+            else:
+                if len(split_str) > 1:
+                    print('\t', bcolors.WHITE, split_str[0], tabulator, split_str[1])
+                else:
+                    print('\t', bcolors.WHITE, split_str[0])
+    return status
 
 
-def get_data(domain):
+def get_whois_data(domain):
     whois_raw_data = whois.query(domain)
-    if whois_raw_data is None:
+    if not whois_raw_data:
         print(bcolors.FAIL, 'This domain is not registered.')
     else:
         print('\033[1;32mDomain name:\t', bcolors.WHITE, whois_raw_data.name)
-        print('\033[1;32mRegistrar:\t', bcolors.WHITE, whois_raw_data.registrar)
+        if not whois_raw_data.registrar:
+            print('\033[91mRegistrar data absent.')
+        else:
+            print('\033[1;32mRegistrar:\t', bcolors.WHITE, whois_raw_data.registrar)
         print('\033[1;32mNameservers:')
         for i in whois_raw_data.name_servers:
             print('\t', bcolors.WHITE, i)
         creation_date = whois_raw_data.creation_date
-        print('\033[1;32mRegistered at:\t', bcolors.RESET, creation_date.ctime(), '\033[1;32m\tBy Kyiv time:\t',
-              bcolors.RESET, creation_date.astimezone(pytz.timezone('Europe/Kiev')))
-        print('\033[1;32mUpdated at:\t', bcolors.RESET, whois_raw_data.last_updated.ctime(), '\t')
-        print('\033[1;32mExpires at:\t', bcolors.RESET, whois_raw_data.expiration_date.ctime(), '\t')
+        if not creation_date:
+            print("\033[91mCreation date not available.", bcolors.RESET)
+        else:
+            print('\033[1;32mRegistered at:\t', bcolors.WHITE, creation_date.ctime(), '\033[1;32m\tBy Kyiv time:\t',
+                  bcolors.WHITE, creation_date.astimezone(pytz.timezone('Europe/Kiev')))
+        updated_time = whois_raw_data.last_updated
+        if not updated_time:
+            print("\033[91mTime of the last update is not available.", bcolors.RESET)
+        else:
+            print('\033[1;32mUpdated at:\t', bcolors.WHITE, updated_time.ctime(), '\t')
+        expiration_date = whois_raw_data.expiration_date
+        if not expiration_date:
+            print("\033[91mExpiration date is not available.", bcolors.RESET)
+        else:
+            print('\033[1;32mExpires at:\t', bcolors.WHITE, expiration_date.ctime(), '\t')
         status = get_domain_statuses(whois_raw_data)
         if status:
             get_dns_data(whois_raw_data)
@@ -68,29 +99,32 @@ def get_data(domain):
             print(bcolors.FAIL, "This domain is not active.", bcolors.RESET)
 
 
+def print_dns_records(resolver, whois_raw_data):
+    a_query = resolver.query(str(whois_raw_data.name), 'A')
+    for i in a_query:
+        print('\t\033[1;32mA\t', bcolors.WHITE, i)
+    mx_query = resolver.query(str(whois_raw_data.name), 'MX')
+    mx_query.sort(reverse=True)
+    for i in mx_query:
+        print('\033[1;32m\tMX\t', bcolors.WHITE, i)
+    txt_query = resolver.query(str(whois_raw_data.name), 'TXT')
+    for i in txt_query:
+        if 'v=spf' in i:
+            print('\033[1;32m\tSPF\t', bcolors.WHITE, i)
+        else:
+            print('\033[1;32m\tTXT\t', bcolors.WHITE, i)
+    dkim = resolver.query('default._domainkey.' + str(whois_raw_data.name), 'TXT')
+    for i in dkim:
+        if 'v=DKIM' in i:
+            print('\033[1;32m\tDKIM\t', bcolors.WHITE, i)
+
+
 def get_dns_data(whois_raw_data):
     if 'dns1.namecheaphosting.com' != whois_raw_data.name_servers[0]:
         print('\033[1;32mDNS lookup information:\t', bcolors.WARNING, 'Warning! Domain not using Web Hosting DNS.',
               bcolors.OK)
-        a_query = pydig.query(str(whois_raw_data.name), 'A')
-        for i in a_query:
-            print('\t\033[1;32mA\t', bcolors.RESET, i)
-        mx_query = pydig.query(str(whois_raw_data.name), 'MX')
-        for i in mx_query:
-            print('\033[1;32m\tSPF\t', bcolors.WHITE, i)
-        txt_query = pydig.query(str(whois_raw_data.name), 'TXT')
-        for i in txt_query:
-            if 'v=spf' in i:
-                print('\033[1;32m\tSPF\t', bcolors.RESET, i)
-            else:
-                print('\033[1;32m\tTXT\t', bcolors.RESET, i)
-        dkim = pydig.query('default._domainkey.' + str(whois_raw_data.name), 'TXT')
-        for i in dkim:
-            if 'v=DKIM' in i:
-                print('\033[1;32m\tDKIM\t', bcolors.RESET, i)
+        print_dns_records(pydig.Resolver(), whois_raw_data)
     else:
-        ns1a = str(pydig.query(whois_raw_data.name_servers[0], 'A'))
-        ns2a = str(pydig.query(whois_raw_data.name_servers[1], 'A'))
         resolver = pydig.Resolver(
             nameservers=[
                 whois_raw_data.name_servers[0].__str__(),
@@ -100,24 +134,8 @@ def get_dns_data(whois_raw_data):
                 '+time=10'
             ]
         )
-        query = resolver.query(str(whois_raw_data.name), 'A')
         print('\033[1;32mDNS lookup information:\t')
-        a_query = resolver.query(str(whois_raw_data.name), 'A')
-        for i in a_query:
-            print('\t\033[1;32mA\t', bcolors.RESET, i)
-        mx_query = resolver.query(str(whois_raw_data.name), 'MX')
-        for i in mx_query:
-            print('\033[1;32m\tMX\t', bcolors.WHITE, i)
-        txt_query = resolver.query(str(whois_raw_data.name), 'TXT')
-        for i in txt_query:
-            if 'v=spf' in i:
-                print('\033[1;32m\tSPF\t', bcolors.RESET, i)
-            else:
-                print('\033[1;32m\tTXT\t', bcolors.RESET, i)
-        dkim = resolver.query('default._domainkey.' + str(whois_raw_data.name), 'TXT')
-        for i in dkim:
-            if 'v=DKIM' in i:
-                print('\033[1;32m\tDKIM\t', bcolors.RESET, i)
+        print_dns_records(resolver, whois_raw_data)
 
 
 def begin(entered_domain):
@@ -129,6 +147,6 @@ def begin(entered_domain):
         # check if the entered domain's TLD is in the list of supported ones to parse data
         else:
             # call the function that parses the required fields and shows them in a comfortable way
-            get_data(entered_domain)
+            get_whois_data(entered_domain)
     else:
         print(bcolors.FAIL, 'You have input a non valid domain name.')
